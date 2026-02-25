@@ -1,30 +1,52 @@
 ---
-title: "Raport_1"
+title: "Raport 1. ZML - Regresja logistyczna"
 author: "Monika Nowak"
 date: "2026-02-25"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# Analiza danych
+
+Rozważmy zbiór danych pochodzący z pliku `Lista_1.csv`, który opisuje relacje między prawdopodobieństwami przyjęcia na studia a wynikami testów rachunkowych i poziomu niepewności.
+
+## 1. Załadowanie danych
+
+Pobierzmy wymagany plik i sprawdźmy wygląd początkowych wierszy.
+
+```{r}
+
+dane <- read.csv("lista_1.csv", row.names = 1)
+
+head(dane)
+
 ```
 
-## R Markdown
+Pierwsza kolumna przechowywanej w pliku tabeli stanowiła numerację kolejnych wierszy. Dalej, kolumna `numeracy` przechowuje wynik testów rachunkowych, `anxiety` - poziom niepewności i `success` informuje o tym, czy dana osoba została przyjęta na studia (wartość $1$), czy też nie (wartość $0$).
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## 2. Rysowanie boxplotów
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Przeanalizujmy boxploty dla zmiennej `numeracy` w rozbiciu na grupę przyjętych i nieprzyjętych osób.
 
-```{r cars}
-summary(cars)
+### Wykres
+
+```{r, echo = FALSE}
+
+library(ggplot2)
+library(tidyverse)
+library(hrbrthemes)
+
+dane %>%
+  ggplot( aes(x = factor(success), y = numeracy, fill = factor(success))) +
+  geom_boxplot() +
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  scale_fill_manual(values = c("plum", "thistle2")) +
+  theme_classic()
+
+boxplot(dane$numeracy ~ dane$success, xlab = "Nieprzyjęte osoby (0) vs przyjęte osoby (1)", ylab = "Wynik testu rachunkowego", main = strwrap("Wyniki testu rachunkowego w grupach: przyjęci vs nieprzyjęci", width = 40))
+
 ```
 
-## Including Plots
+### Wnioski
 
-You can also embed plots, for example:
+W oparciu o 
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
