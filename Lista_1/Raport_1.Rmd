@@ -23,13 +23,13 @@ head(dane)
 
 Pierwsza kolumna przechowywanej w pliku tabeli stanowiła numerację kolejnych wierszy. Dalej, kolumna `numeracy` przechowuje wynik testów rachunkowych, `anxiety` - poziom niepewności i `success` informuje o tym, czy dana osoba została przyjęta na studia (wartość $1$), czy też nie (wartość $0$).
 
-## 2. Rysowanie boxplotów
+## 2. Rysowanie boxplotów dla wyników testu rachunkowego
 
 Przeanalizujmy boxploty dla zmiennej `numeracy` w rozbiciu na grupę przyjętych i nieprzyjętych osób.
 
 ### Wykres
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, message = FALSE}
 
 library(ggplot2)
 library(tidyverse)
@@ -48,5 +48,60 @@ boxplot(dane$numeracy ~ dane$success, xlab = "Nieprzyjęte osoby (0) vs przyjęt
 
 ### Wnioski
 
-W oparciu o 
+W oparciu o zamieszczony wykres `Wyniki testu rachunkowego w grupach: przyjęci vs nieprzyjęci` możemy wyciągnąć wniosek, jakoby wynik testu rachunkowego był w sposób znaczny skorelowany z decyzją o przyjęciu kandydata na studia. Każda z cech rozkładu, to znaczy wartości minimalne i maksymalne oraz kwartyle są mniejsze w przypadku grupy osób nieprzyjętych w porównaniu do osób przyjętych. 
 
+## 3. Rysowanie boxplotów dla poziomu niepewności
+
+### Wykres
+
+```{r, echo = FALSE, message = FALSE}
+
+dane %>%
+  ggplot( aes(x = factor(success), y = anxiety, fill = factor(success))) +
+  geom_boxplot() +
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  scale_fill_manual(values = c("#FFF0F5", "#FFB6C1")) +
+  theme_classic()
+
+boxplot(dane$anxiety ~ dane$success, xlab = "Nieprzyjęte osoby (0) vs przyjęte osoby (1)", ylab = "Poziom niepewności", main = strwrap("Poziom niepewności w grupach: przyjęci vs nieprzyjęci", width = 40))
+
+```
+
+### Wnioski
+
+Porównując grupę nieprzyjętych i przyjętych osób na studia w zależności od rozkładu poziomu niepewności dochodzimy do konkluzji, iż ma on również silny wpływ na decyzję odnośnie przyjęcia. Grupa osób nieprzyjętych na studia cechuje się wyraźnie większymi odnotowaniami poziomów niepewności i każda cecha, tj. wartości minimalne i maksymalne oraz kwartyle, jest większa w porównaniu do wyników otrzymanych w grupie osób przyjętych.
+
+## 4. Model regresji logistycznej
+
+### Konstrukcja modelu
+
+Skontruujmy model regresji logistycznej oparty na danych pochodzących z pliku `Lista_1.csv`. W tym celu uzyjemy wbudowanej w `R` funkcji `glm`.
+
+```{r, messages = FALSE}
+
+model <- glm(dane$success ~ dane$numeracy + dane$anxiety, family = binomial)
+
+```
+
+### Estymatory parametrów i wyniki testów istotności
+
+```{r, echo = FALSE, message = FALSE}
+
+library(knitr)
+library(latex2exp)
+
+sum_mod = summary(model)
+
+df <- data.frame(
+  a = c(sum_mod$coefficients[, "Estimate"]),
+  b = c(sum_mod$coefficients[, "Pr(>|z|)"])
+)
+
+rownames(df) <- c("$\\beta_0$", "wynik testu rachunkowego", "poziom niepewności")
+
+colnames(df) <- c("Estymator parametru", "p-wartość")
+
+kable(df, caption = "Estymatory parametrów i poziomy istotności")
+
+
+```
