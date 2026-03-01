@@ -7,11 +7,11 @@ output: pdf_document
 
 # Analiza danych
 
-Rozważmy zbiór danych pochodzący z pliku `Lista_1.csv`, który opisuje relacje między prawdopodobieństwami przyjęcia na studia a wynikami testów rachunkowych i poziomu niepewności.
+Rozważmy zbiór danych pochodzący z pliku `Lista_1.csv`, który opisuje relacje między prawdopodobieństwami przyjęcia na studia a wynikami testów rachunkowych i poziomu niepewności uczniów.
 
 ## 1. Załadowanie danych
 
-Pobierzmy wymagany plik i sprawdźmy wygląd początkowych wierszy.
+Pobierzmy wymagany plik i sprawdźmy wygląd początkowych rekordów.
 
 ```{r}
 
@@ -21,7 +21,7 @@ head(dane)
 
 ```
 
-Pierwsza kolumna przechowywanej w pliku tabeli stanowiła numerację kolejnych wierszy. Dalej, kolumna `numeracy` przechowuje wynik testów rachunkowych, `anxiety` - poziom niepewności i `success` informuje o tym, czy dana osoba została przyjęta na studia (wartość $1$), czy też nie (wartość $0$).
+Pierwsza kolumna przechowywanej w pliku tabeli stanowi numerację kolejnych wierszy. Dalej, kolumna `numeracy` przechowuje wynik testów rachunkowych, `anxiety` - poziom niepewności i `success` informuje o tym, czy dana osoba została przyjęta na studia (wartość $1$), czy też nie (wartość $0$).
 
 ## 2. Rysowanie boxplotów dla wyników testu rachunkowego
 
@@ -48,7 +48,7 @@ boxplot(dane$numeracy ~ dane$success, xlab = "Nieprzyjęte osoby (0) vs przyjęt
 
 ### Wnioski
 
-W oparciu o zamieszczony wykres `Wyniki testu rachunkowego w grupach: przyjęci vs nieprzyjęci` możemy wyciągnąć wniosek, jakoby wynik testu rachunkowego był w sposób znaczny skorelowany z decyzją o przyjęciu kandydata na studia. Każda z cech rozkładu, to znaczy wartości minimalne i maksymalne oraz kwartyle są mniejsze w przypadku grupy osób nieprzyjętych w porównaniu do osób przyjętych. 
+W oparciu o zamieszczony wykres `Wyniki testu rachunkowego w grupach: przyjęci vs nieprzyjęci` możemy wyciągnąć wniosek, jakoby wynik testu rachunkowego był w sposób znaczny skorelowany z decyzją o przyjęciu kandydata na studia, o czym świadczy, że każda z cech rozkładu, to znaczy wartości minimalne i maksymalne oraz kwartyle są mniejsze w przypadku grupy osób nieprzyjętych w porównaniu do osób przyjętych. 
 
 ## 3. Rysowanie boxplotów dla poziomu niepewności
 
@@ -79,11 +79,22 @@ Skontruujmy model regresji logistycznej oparty na danych pochodzących z pliku `
 
 ```{r, messages = FALSE}
 
-model <- glm(dane$success ~ dane$numeracy + dane$anxiety, family = binomial)
+model <- glm(success ~ numeracy + anxiety, data = dane, family = binomial(link = "logit"))
+
+```
+
+```{r, echo = FALSE}
+
+### family - error distribution and link function
+### family = gaussian(link = "identity") - linear regression (default)
+### family = binomial(link = "logit) - logistic regression
+### family = poisson(link = "log") - poisson regression 
 
 ```
 
 ### Estymatory parametrów i wyniki testów istotności
+
+Przeprowadźmy testowanie parametrów w regresji logistycznej dla hipotez zerowych takich, że kolejne parametry są równe zeru na poziomie istotności $\alpha = 0.05$. Wyniki przechowuje tabela `Estymatory parametrów i poziomy istotności`.
 
 ```{r, echo = FALSE, message = FALSE}
 
@@ -105,3 +116,142 @@ kable(df, caption = "Estymatory parametrów i poziomy istotności")
 
 
 ```
+
+Na poziomie istotności $\alpha = 0.05$ mamy podstawy do odrzucenia hipotezy zerowej w przypadku każdego z parametrów. Oznacza to, że każdy z nich możemy uznać za istotny. 
+
+### Predykcja sukcesu dla danego poziomu niepewności i wyniku testu rachunkowego
+
+```{r, echo = FALSE}
+
+new <- data.frame(
+  numeracy = 10,
+  anxiety = 13
+)
+
+pred <- predict(model, newdata = new, type = "response")
+
+pred
+
+```
+
+Wymodelowane prawdopodobieństwo dostania się na studia ucznia o zadanym poziomie niepewności i wyniku testu rachunkowego wynosi w przybliżeniu $88\%$. Szansa na sukces jest więc wysoka. 
+
+### Krzywa ROC
+
+Naszkicujemy krzywą ROC, korzystając z funkcji wbudowanej w pakiet `pROC`.
+
+a) logit
+
+```{r, echo = FALSE}
+
+library(pROC)
+
+p = roc(dane$success, predict(model, type = "response"))
+
+plot(p)
+
+```
+Istotnie odbiega ona od modelu liniowego, co świadczy o przewadze modelu regresji logistycznej.
+
+a) probit
+
+```{r, echo = FALSE}
+
+model_2 <- glm(success ~ numeracy + anxiety, data = dane, family = binomial(link = "probit"))
+
+p_2 = roc(dane$success, predict(model_2, type = "response"))
+
+```
+
+c) cauchit
+
+```{r, echo = FALSE}
+
+model_3 <- glm(success ~ numeracy + anxiety, data = dane, family = binomial(link = "cauchit"))
+
+p_3 = roc(dane$success, predict(model_3, type = "response"))
+
+```
+
+
+c) cloglog
+
+```{r, echo = FALSE}
+
+model_4 <- glm(success ~ numeracy + anxiety, data = dane, family = binomial(link = "cloglog"))
+
+p_4 = roc(dane$success, predict(model_4, type = "response"))
+
+```
+
+### Porównanie
+
+```{r, echo = FALSE}
+
+par(mfrow = c(2,2))
+
+plot(p)
+plot(p_2)
+plot(p_3)
+plot(p_4)
+
+roc.test(p, p_2, method = "delong")$p.value
+roc.test(p, p_3, method = "delong")$p.value
+roc.test(p, p_4, method = "delong")$p.value
+roc.test(p_2, p_3, method = "delong")$p.value
+roc.test(p_2, p_4, method = "delong")$p.value
+roc.test(p_3, p_4, method = "delong")$p.value
+
+par(mfrow = c(1,1))
+
+plot(p, col = "blue")
+lines(p_2, col = "green", lty = 2)
+lines(p_3, col = "red", lty = 3)
+lines(p_4, col = "orange", lty = 4)
+
+
+```
+
+## 6. Model z funkcją linkującą "logit"
+
+### Estymator macierzy kowariancji
+
+```{r, echo = FALSE}
+
+X = vcov(model)
+
+X
+
+```
+
+### Porównanie
+
+```{r, echo = FALSE}
+
+df <- data.frame(
+  vcov = diag(X),
+  r = c(sum_mod$coefficients[, "Std. Error"]^2)
+)
+
+df
+
+```
+
+Obie komendy dostarczają te same wyniki wariancji estymatorów. 
+
+### Testowanie hipotezy
+
+Wykorzystamy test LRT (Likelihood Ratio Test) z hipotezą zerową $\text{H}_0: \beta_1 = \beta_2=0$
+
+```{r, echo = FALSE}
+
+model_null = glm(success ~ 1, data = dane, family = binomial)
+
+model_full = glm(success ~ anxiety + numeracy, data = dane, family = binomial)
+
+anova(model_null, model_full, test="Chisq")
+
+
+```
+
+Na poziomie istotności $\alpha = 0.05$ mamy podstawy do odrzucenia hipotezy zerowej o braku wpływu regresorów poziomu niepewności i wyników testu rachunkowego na zmienną objaśnianą prawdopodobieństwa dostania się na studia.
